@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Save, Upload } from 'lucide-react';
-import { collection, query, limit, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, limit, getDocs, doc, updateDoc, addDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, Profile } from '../../lib/firebase';
 
@@ -23,6 +23,18 @@ export default function ProfileManager() {
       if (!querySnapshot.empty) {
         const docSnap = querySnapshot.docs[0];
         setProfile({ id: docSnap.id, ...docSnap.data() } as Profile);
+      } else {
+        setProfile({
+          id: '',
+          name: '',
+          subtitle: '',
+          description: '',
+          profileImageUrl: '',
+          email: '',
+          phone: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -58,21 +70,35 @@ export default function ProfileManager() {
     setMessage('');
 
     try {
-      const profileRef = doc(db, 'profiles', profile.id);
-      await updateDoc(profileRef, {
-        name: profile.name,
-        subtitle: profile.subtitle,
-        description: profile.description,
-        profileImageUrl: profile.profileImageUrl,
-        email: profile.email,
-        phone: profile.phone,
-        updatedAt: new Date().toISOString(),
-      });
-
-      setMessage('Profile updated successfully!');
+      if (profile.id) {
+        const profileRef = doc(db, 'profiles', profile.id);
+        await updateDoc(profileRef, {
+          name: profile.name,
+          subtitle: profile.subtitle,
+          description: profile.description,
+          profileImageUrl: profile.profileImageUrl,
+          email: profile.email,
+          phone: profile.phone,
+          updatedAt: new Date().toISOString(),
+        });
+        setMessage('Profile updated successfully!');
+      } else {
+        const docRef = await addDoc(collection(db, 'profiles'), {
+          name: profile.name,
+          subtitle: profile.subtitle,
+          description: profile.description,
+          profileImageUrl: profile.profileImageUrl,
+          email: profile.email,
+          phone: profile.phone,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        setProfile({ ...profile, id: docRef.id });
+        setMessage('Profile created successfully!');
+      }
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage('Error updating profile');
+      setMessage('Error saving profile');
       console.error('Error:', error);
     } finally {
       setSaving(false);
@@ -99,7 +125,7 @@ export default function ProfileManager() {
           <input
             type="text"
             value={profile?.name || ''}
-            onChange={(e) => setProfile(profile ? { ...profile, name: e.target.value } : null)}
+            onChange={(e) => profile && setProfile({ ...profile, name: e.target.value })}
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
           />
         </div>
@@ -111,7 +137,7 @@ export default function ProfileManager() {
           <input
             type="text"
             value={profile?.subtitle || ''}
-            onChange={(e) => setProfile(profile ? { ...profile, subtitle: e.target.value } : null)}
+            onChange={(e) => profile && setProfile({ ...profile, subtitle: e.target.value })}
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
           />
         </div>
@@ -122,7 +148,7 @@ export default function ProfileManager() {
           </label>
           <textarea
             value={profile?.description || ''}
-            onChange={(e) => setProfile(profile ? { ...profile, description: e.target.value } : null)}
+            onChange={(e) => profile && setProfile({ ...profile, description: e.target.value })}
             rows={4}
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
           />
@@ -143,7 +169,7 @@ export default function ProfileManager() {
             <input
               type="url"
               value={profile?.profileImageUrl || ''}
-              onChange={(e) => setProfile(profile ? { ...profile, profileImageUrl: e.target.value } : null)}
+              onChange={(e) => profile && setProfile({ ...profile, profileImageUrl: e.target.value })}
               placeholder="Or enter image URL"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
             />
@@ -159,7 +185,7 @@ export default function ProfileManager() {
           <input
             type="email"
             value={profile?.email || ''}
-            onChange={(e) => setProfile(profile ? { ...profile, email: e.target.value } : null)}
+            onChange={(e) => profile && setProfile({ ...profile, email: e.target.value })}
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
           />
         </div>
@@ -171,7 +197,7 @@ export default function ProfileManager() {
           <input
             type="tel"
             value={profile?.phone || ''}
-            onChange={(e) => setProfile(profile ? { ...profile, phone: e.target.value } : null)}
+            onChange={(e) => profile && setProfile({ ...profile, phone: e.target.value })}
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
           />
         </div>
